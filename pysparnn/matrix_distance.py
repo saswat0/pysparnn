@@ -340,3 +340,53 @@ class DenseCosineDistance(MatrixMetricSearch):
         magnitude = 1.0 / (a_root_sum_square * self.matrix_root_sum_square)
 
         return 1 - (dprod * magnitude)
+
+
+class JaccardDistance(MatrixMetricSearch):
+    """A matrix that implements jaccard distance search against it.
+
+    jaccard_distance = 1 - jaccard_similarity
+
+    Note: We want items that are more similar to be closer to zero so we are
+    going to instead return 1 - jaccard_similarity. We do this so similarity
+    and distance metrics can be treated the same way.
+    """
+
+    def __init__(self, features, records_data):
+        super(JaccardDistance, self).__init__(features, records_data)
+
+    @staticmethod
+    def features_to_matrix(features):
+        """
+        Args:
+            val: A list of features to be formatted.
+        Returns:
+            The transformed matrix.
+        """
+        return _sparse.csr_matrix(features)
+
+    @staticmethod
+    def vstack(matrix_list):
+        """
+        Args:
+            val: A list of features to be formatted.
+        Returns:
+            The transformed matrix.
+        """
+        return _sparse.vstack(matrix_list)
+
+    def _transform_value(self, v):
+        return v
+
+    def _distance(self, a_matrix):
+        """Vectorised sparse jaccard distance"""
+        X = _sparse.csr_matrix(a_matrix).astype(int)
+        Y = _sparse.csr_matrix(self.matrix).astype(int)
+        intersect = X.dot(Y.T)
+
+        x_sum = X.sum(axis=1).A1
+        y_sum = Y.sum(axis=1).A1
+        xx, yy = _np.meshgrid(x_sum, y_sum)
+        union = ((xx + yy).T - intersect)
+
+        return (1 - intersect / union).A
